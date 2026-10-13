@@ -62,51 +62,51 @@ variables:
         TRIPLET: $HOST_ARCH-w64-mingw32
 
 .variables-macos-x86_64: &variables-macos-x86_64
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HEIMDALL_FORCE_KERNELVERSION: 19
         SHORTARCH: intel64
         HOST_ARCH: x86_64
         TRIPLET: $HOST_ARCH-apple-darwin$HEIMDALL_FORCE_KERNELVERSION
 
 .variables-macos-arm64: &variables-macos-arm64
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HEIMDALL_FORCE_KERNELVERSION: 19
         SHORTARCH: arm64
         HOST_ARCH: aarch64
         TRIPLET: $HOST_ARCH-apple-darwin$HEIMDALL_FORCE_KERNELVERSION
 
 .variables-ios-arm64: &variables-ios-arm64
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HOST_ARCH: arm64
         TRIPLET: $HOST_ARCH-apple-iphoneos
         SDKNAME: iphoneos
 
 .variables-ios-armv7: &variables-ios-armv7
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HOST_ARCH: armv7
         TRIPLET: $HOST_ARCH-apple-iphoneos
         SDKNAME: iphoneos
 
 .variables-ios-simulator-x86_64: &variables-ios-simulator-x86_64
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HOST_ARCH: x86_64
         TRIPLET: $HOST_ARCH-apple-iphonesimulator
         SDKNAME: iphonesimulator
 
 .variables-tvos-arm64: &variables-tvos-arm64
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HOST_ARCH: arm64
         TRIPLET: $HOST_ARCH-apple-appletvos
         SDKNAME: appletvos
 
 .variables-watchos-arm64_32: &variables-watchos-arm64_32
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HOST_ARCH: arm64_32
         TRIPLET: $HOST_ARCH-apple-watchos
         SDKNAME: watchos
 
 .variables-xros-arm64: &variables-xros-arm64
-        HEIMDALL_PATH: /Users/lycariaci/sandbox/bin
+        HEIMDALL_PATH: /Users/videolanci/sandbox/bin
         HOST_ARCH: arm64
         TRIPLET: $HOST_ARCH-apple-xros
         SDKNAME: xros
@@ -473,7 +473,7 @@ raspbian-arm:
     CCACHE_DIR: ${CI_PROJECT_DIR}/ccache
     CCACHE_COMPILERCHECK: content
     CCACHE_CPP2: 'true'
-    HEIMDALL_CCACHE_BINS_PATH: '/Users/lycariaci/sandbox/bin/ccache/bin'
+    HEIMDALL_CCACHE_BINS_PATH: '/Users/videolanci/sandbox/bin/ccache/bin'
   before_script:
     - !reference [default, before_script]
     - |
