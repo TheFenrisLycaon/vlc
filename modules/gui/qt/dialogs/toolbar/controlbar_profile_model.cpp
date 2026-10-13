@@ -518,7 +518,7 @@ QString ControlbarProfileModel::generateUniqueName(const QString &name)
     // to check only for name existence but for cases when the
     // config file is edited explicitly, using count_if might
     // be helpful.
-    static const auto sameNameCount = [this](const auto& name) {
+    const auto sameNameCount = [this](const auto& name) {
         return std::count_if(m_profiles.begin(),
                              m_profiles.end(),
                              [name](const ControlbarProfile* i) {
